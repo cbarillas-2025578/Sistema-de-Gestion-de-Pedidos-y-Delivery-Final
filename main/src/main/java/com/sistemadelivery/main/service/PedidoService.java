@@ -6,6 +6,7 @@ import com.sistemadelivery.main.dto.response.HistorialEstadoResponse;
 import com.sistemadelivery.main.dto.response.PageResponse;
 import com.sistemadelivery.main.dto.response.PedidoResponse;
 import com.sistemadelivery.main.entity.enums.EstadoPedido;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,7 +22,7 @@ public interface PedidoService {
     /** Detalle con verificación de pertenencia (dueño, repartidor asignado o admin). */
     PedidoResponse obtener(Long id);
 
-    /** Cancela un pedido propio en estado PENDIENTE y devuelve el stock una única vez. */
+    /** Cancela un pedido. CLIENTE solo puede cancelar sus propios pedidos; ADMIN puede cancelar cualquier pedido. */
     PedidoResponse cancelar(Long id);
 
     /**
@@ -30,9 +31,13 @@ public interface PedidoService {
      */
     PedidoResponse cambiarEstadoAdministrativo(Long id, EstadoPedidoRequest request);
 
-    /** Listado administrativo con filtros y paginación. */
+    /** Listado de pedidos pendientes de asignación o disponibles para entrega. */
+    PageResponse<PedidoResponse> pedidosDisponibles(int page, int size);
+
+    @Transactional(readOnly = true)
     PageResponse<PedidoResponse> listarTodos(EstadoPedido estado, Long clienteId, Long repartidorId,
-                                             LocalDateTime desde, LocalDateTime hasta, int page, int size);
+                                             LocalDateTime desde, LocalDateTime hasta,
+                                             int page, int size);
 
     /** Historial de cambios de estado de un pedido (acceso verificado). */
     List<HistorialEstadoResponse> historial(Long id);

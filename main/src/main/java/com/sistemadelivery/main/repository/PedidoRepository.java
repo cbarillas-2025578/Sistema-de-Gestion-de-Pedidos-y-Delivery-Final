@@ -4,6 +4,7 @@ import com.sistemadelivery.main.entity.Pedido;
 import com.sistemadelivery.main.entity.enums.EstadoPedido;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -21,8 +22,8 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     Page<Pedido> findByRepartidorId(Long repartidorId, Pageable pageable);
 
-    /** Pedidos elegibles para reparto: preparados y sin repartidor asignado. */
-    Page<Pedido> findByRepartidorNullAndEstado(EstadoPedido estado, Pageable pageable);
+    /** Pedidos en estados PENDIENTE o EN_PREPARACION sin repartidor asignado. */
+    Page<Pedido> findByRepartidorNullAndEstadoIn(EstadoPedido[] estados, Pageable pageable);
 
     /** Bloqueo pesado de la fila del pedido para operaciones de estado/asignación. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -56,4 +57,6 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     BigDecimal sumarMontoPorEstado(@Param("estado") EstadoPedido estado);
 
     long countByEstado(EstadoPedido estado);
+
+    Page<Pedido> findByRepartidorNullAndEstado(EstadoPedido estadoPedido, PageRequest fechaPedido);
 }

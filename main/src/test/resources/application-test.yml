@@ -1,0 +1,28 @@
+# Perfil de pruebas: base PostgreSQL DEDICADA (sistema_delivery_test).
+# El esquema lo crea Flyway igual que en desarrollo/productivo (ddl-auto: validate).
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_TEST_HOST:localhost}:${DB_TEST_PORT:5432}/${DB_TEST_NAME:sistema_delivery_test}
+    username: ${DB_TEST_USERNAME:postgres}
+    password: ${DB_TEST_PASSWORD:admin}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+app:
+  jwt:
+    # Clave de prueba: solo para el entorno de pruebas, nunca usar en producción.
+    secret: ${JWT_TEST_SECRET:clave-de-prueba-para-jwt-sistema-delivery-2026}
+    expiration-ms: 3600000
+  admin:
+    # El AdminInitializer crea este administrador al arrancar el contexto de pruebas.
+    email: admin@test.local
+    password: Admin#12345
+
+logging:
+  level:
+    com.sistemadelivery: INFO
+    org.flywaydb: WARN

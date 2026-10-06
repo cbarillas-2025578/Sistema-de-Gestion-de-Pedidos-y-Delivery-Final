@@ -81,20 +81,33 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.obtener(id));
     }
 
-    @Operation(summary = "Cancelar un pedido propio en estado PENDIENTE",
-            description = "Devuelve el stock al inventario exactamente una vez.")
+    @Operation(summary = "Cancelar un pedido propio en estado PENDIENTE (CLIENTE o ADMIN)",
+            description = "Devuelve el stock al inventario exactamente una vez. El cliente solo puede cancelar sus propios pedidos.")
     @PatchMapping("/{id}/cancelar")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
     public ResponseEntity<PedidoResponse> cancelar(@PathVariable Long id) {
         return ResponseEntity.ok(pedidoService.cancelar(id));
     }
 
-    @Operation(summary = "Transición administrativa PENDIENTE → EN_PREPARACION (solo ADMIN)",
-            description = "Única transición administrativa admitida; no permite estados arbitrarios.")
+    @Operation(summary = "Transición de estado del pedido (ADMIN o REPARTIDOR)",
+            description = "Actualiza el estado del pedido respetando las transiciones autorizadas. "
+                    + "Roles permitidos: ADMIN, REPARTIDOR.")
     @PatchMapping("/{id}/estado")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'REPARTIDOR')")
     public ResponseEntity<PedidoResponse> cambiarEstado(@PathVariable Long id,
                                                         @Valid @RequestBody EstadoPedidoRequest request) {
         return ResponseEntity.ok(pedidoService.cambiarEstadoAdministrativo(id, request));
+    }
+
+    @Operation(summary = "Pedidos pendientes de asignación o disponibles para entrega",
+            description = "Muestra los pedidos en estado PENDIENTE o EN_PREPARACION sin repartidor asignado. "
+                    + "Roles permitidos: ADMIN, REPARTIDOR.")
+    @GetMapping("/disponibles")
+    @PreAuthorize("hasAnyRole('ADMIN', 'REPARTIDOR')")
+    public ResponseEntity<PageResponse<PedidoResponse>> pedidosDisponibles(
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return ResponseEntity.ok(pedidoService.pedidosDisponibles(page, size));
     }
 
     @Operation(summary = "Historial de cambios de estado de un pedido")

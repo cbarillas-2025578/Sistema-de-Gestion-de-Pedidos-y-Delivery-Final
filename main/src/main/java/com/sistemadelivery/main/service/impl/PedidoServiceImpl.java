@@ -12,6 +12,7 @@ import com.sistemadelivery.main.entity.Pedido;
 import com.sistemadelivery.main.entity.Producto;
 import com.sistemadelivery.main.entity.Usuario;
 import com.sistemadelivery.main.entity.enums.EstadoPedido;
+import com.sistemadelivery.main.entity.enums.Rol;
 import com.sistemadelivery.main.exception.BusinessException;
 import com.sistemadelivery.main.exception.ConflictException;
 import com.sistemadelivery.main.exception.ForbiddenException;
@@ -173,9 +174,17 @@ public class PedidoServiceImpl implements PedidoService {
         // y la segunda observa CANCELADO → 409 (el stock solo se devuelve una vez).
         Pedido pedido = pedidoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> ResourceNotFoundException.de("Pedido", id));
-        if (!pedido.getCliente().getEmail().equals(email)) {
-            throw new ForbiddenException("Solo puede cancelar sus propios pedidos");
+
+        boolean esAdmin = SeguridadUtil.esAdmin();
+        if (esAdmin) {
+            // ADMIN puede cancelar cualquier pedido
+        } else {
+            // CLIENTE solo puede cancelar sus propios pedidos
+            if (!pedido.getCliente().getEmail().equals(email)) {
+                throw new ForbiddenException("Solo puede cancelar sus propios pedidos");
+            }
         }
+
         if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
             throw new ConflictException("CANCELACION_NO_PERMITIDA",
                     "Solo se pueden cancelar pedidos en estado PENDIENTE; estado actual: "
@@ -206,8 +215,9 @@ public class PedidoServiceImpl implements PedidoService {
     @Transactional
     public PedidoResponse cambiarEstadoAdministrativo(Long id, EstadoPedidoRequest request) {
         String email = SeguridadUtil.emailActual();
-        if (!SeguridadUtil.esAdmin()) {
-            throw new ForbiddenException("Solo un administrador puede ejecutar esta operación");
+        boolean esAdminORepartidor = SeguridadUtil.esAdmin() || SeguridadUtil.esRol(Rol.REPARTIDOR);
+        if (!esAdminORepartidor) {
+            throw new ForbiddenException("Solo un administrador o repartidor puede ejecutar esta operación");
         }
         if (request.estado() != EstadoPedido.EN_PREPARACION) {
             throw new BusinessException("TRANSICION_NO_PERMITIDA",
@@ -246,6 +256,16 @@ public class PedidoServiceImpl implements PedidoService {
         return historialRepository.findByPedidoIdOrderByFechaAscIdAsc(id).stream()
                 .map(mapper::aRespuesta)
                 .toList();
+    }
+
+    /** Regresa pedidos en estado PENDIENTE o EN_PREPARACION sin repartidor asignado. */
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PedidoResponse> pedidosDisponibles(int page, int size) {
+        Page<Pedido> pedidos = pedidoRepository.findByRepartidorNullAndEstadoIn(
+                new EstadoPedido[]{EstadoPedido.PENDIENTE, EstadoPedido.EN_PREPARACION},
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "fechaPedido")));
+        return PageResponse.de(pedidos.map(mapper::aRespuesta));
     }
 
     /** Regla de acceso a nivel de recurso: dueño, repartidor asignado o administrador. */

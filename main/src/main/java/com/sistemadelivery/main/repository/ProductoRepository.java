@@ -14,8 +14,17 @@ import java.util.Optional;
 
 public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
+    /** Catálogo público: solo productos disponibles y con existencias. */
     Page<Producto> findByComercioIdAndDisponibleTrueAndStockGreaterThan(Long comercioId, Integer minStock, Pageable pageable);
 
+    /** Gestión administrativa: todos los productos del comercio. */
+    Page<Producto> findByComercioId(Long comercioId, Pageable pageable);
+
+    /**
+     * Bloqueo pesado de los productos involucrados en un pedido.
+     * El ORDER BY id ASC fija un orden de bloqueo estable y evita interbloqueos
+     * cuando varias transacciones piden los mismos productos en distinto orden.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Producto p WHERE p.id IN :ids ORDER BY p.id ASC")
     List<Producto> findAllByIdInForUpdateOrderByIdAsc(@Param("ids") List<Long> ids);

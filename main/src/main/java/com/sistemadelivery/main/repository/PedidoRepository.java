@@ -10,6 +10,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface PedidoRepository extends JpaRepository<Pedido, Long> {
@@ -18,11 +21,39 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     Page<Pedido> findByRepartidorId(Long repartidorId, Pageable pageable);
 
-    Page<Pedido> findByEstado(EstadoPedido estado, Pageable pageable);
-
+    /** Pedidos elegibles para reparto: preparados y sin repartidor asignado. */
     Page<Pedido> findByRepartidorNullAndEstado(EstadoPedido estado, Pageable pageable);
 
+    /** Bloqueo pesado de la fila del pedido para operaciones de estado/asignación. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Pedido p WHERE p.id = :id")
     Optional<Pedido> findByIdForUpdate(@Param("id") Long id);
+
+    /**
+     * Listado administrativo con filtros combinables.
+     * Cada parámetro participa en una comparación tipada y en una comprobación IS NULL,
+     * de modo que Hibernate siempre infiere el tipo correcto para PostgreSQL.
+     */
+    @Query("""
+            SELECT p FROM Pedido p
+            WHERE (:estado IS NULL OR p.estado = :estado)
+              AND (:clienteId IS NULL OR p.cliente.id = :clienteId)
+              AND (:repartidorId IS NULL OR p.repartidor.id = :repartidorId)
+              AND (:desde IS NULL OR p.fechaPedido >= :desde)
+              AND (:hasta IS NULL OR p.fechaPedido <= :hasta)
+            """)
+    Page<Pedido> buscar(@Param("estado") EstadoPedido estado,
+                        @Param("clienteId") Long clienteId,
+                        @Param("repartidorId") Long repartidorId,
+                        @Param("desde") LocalDateTime desde,
+                        @Param("hasta") LocalDateTime hasta,
+                        Pageable pageable);
+
+    @Query("SELECT p.estado, COUNT(p) FROM Pedido p GROUP BY p.estado")
+    List<Object[]> contarPorEstado();
+
+    @Query("SELECT COALESCE(SUM(p.montoTotal), 0) FROM Pedido p WHERE p.estado = :estado")
+    BigDecimal sumarMontoPorEstado(@Param("estado") EstadoPedido estado);
+
+    long countByEstado(EstadoPedido estado);
 }

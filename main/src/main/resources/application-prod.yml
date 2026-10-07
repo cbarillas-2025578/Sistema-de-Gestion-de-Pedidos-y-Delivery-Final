@@ -14,6 +14,13 @@ server:
     include-stacktrace: never
     include-message: never
 
+app:
+  admin:
+    # En producción NO se usan credenciales por defecto: el primer administrador
+    # solo se crea si ADMIN_EMAIL y ADMIN_PASSWORD están definidos en el entorno.
+    email: ${ADMIN_EMAIL:}
+    password: ${ADMIN_PASSWORD:}
+
 logging:
   level:
     root: WARN

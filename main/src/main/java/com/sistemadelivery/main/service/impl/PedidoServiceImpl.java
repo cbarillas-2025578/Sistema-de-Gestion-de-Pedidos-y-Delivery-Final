@@ -76,15 +76,12 @@ public class PedidoServiceImpl implements PedidoService {
             throw new ForbiddenException("El usuario está desactivado");
         }
 
-        Comercio comercio = comercioRepository.findById(request.comercioId())
-                .orElseThrow(() -> ResourceNotFoundException.de("Comercio", request.comercioId()));
-        if (!Boolean.TRUE.equals(comercio.getActivo())) {
-            throw new ConflictException("COMERCIO_INACTIVO",
-                    "El comercio está inactivo y no puede recibir pedidos");
-        }
-        if (!Boolean.TRUE.equals(comercio.getAbierto())) {
-            throw new ConflictException("COMERCIO_CERRADO",
-                    "El comercio está cerrado y no puede recibir pedidos");
+        // El comercio puede venir en el payload o deducirse de los productos.
+        Comercio comercio = null;
+        if (request.comercioId() != null) {
+            comercio = comercioRepository.findById(request.comercioId())
+                    .orElseThrow(() -> ResourceNotFoundException.de("Comercio", request.comercioId()));
+            validarComercioAceptaPedidos(comercio);
         }
 
         Map<Long, Integer> cantidades = consolidar(request.productos());
@@ -97,6 +94,14 @@ public class PedidoServiceImpl implements PedidoService {
             Set<Long> encontrados = productos.stream().map(Producto::getId).collect(Collectors.toSet());
             Long faltante = ids.stream().filter(id -> !encontrados.contains(id)).findFirst().orElseThrow();
             throw ResourceNotFoundException.de("Producto", faltante);
+        }
+
+        if (comercio == null) {
+            // Sin comercioId en el payload: se deduce del primer producto. La
+            // comprobación de que todas las líneas pertenezcan al mismo comercio
+            // ocurre en el recorrido siguiente (PRODUCTO_OTRO_COMERCIO).
+            comercio = productos.get(0).getComercio();
+            validarComercioAceptaPedidos(comercio);
         }
 
         BigDecimal totalProductos = BigDecimal.ZERO;
@@ -147,6 +152,18 @@ public class PedidoServiceImpl implements PedidoService {
         Pedido guardado = pedidoRepository.save(pedido);
         pedidoEstadoService.registrarCreacion(guardado, emailCliente);
         return mapper.aRespuesta(guardado);
+    }
+
+    /** Un comercio solo recibe pedidos si está activo y abierto. */
+    private void validarComercioAceptaPedidos(Comercio comercio) {
+        if (!Boolean.TRUE.equals(comercio.getActivo())) {
+            throw new ConflictException("COMERCIO_INACTIVO",
+                    "El comercio está inactivo y no puede recibir pedidos");
+        }
+        if (!Boolean.TRUE.equals(comercio.getAbierto())) {
+            throw new ConflictException("COMERCIO_CERRADO",
+                    "El comercio está cerrado y no puede recibir pedidos");
+        }
     }
 
     @Override

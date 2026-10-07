@@ -113,8 +113,8 @@ y ajuste los valores (o exporte las variables directamente).
 | `JWT_SECRET`         | *(vacío → falla al arrancar)* | **Obligatoria**, mínimo 32 caracteres |
 | `JWT_EXPIRATION_MS`  | `86400000` (24 h)        | Duración del token |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Orígenes permitidos, separados por coma |
-| `ADMIN_EMAIL`        | *(vacío)*                | Email del primer administrador (opcional) |
-| `ADMIN_PASSWORD`     | *(vacío)*                | Contraseña del primer administrador |
+| `ADMIN_EMAIL`        | `admin@fastorder.com`    | Email del primer administrador (en prod: *vacío*, debe definirse) |
+| `ADMIN_PASSWORD`     | `Admin123*`              | Contraseña del primer administrador (en prod: *vacío*) |
 | `SERVER_PORT`        | `8080`                   | Puerto HTTP |
 
 Generar una clave JWT segura:
@@ -161,7 +161,9 @@ Flujo al arrancar:
 1. Flyway valida y aplica las migraciones pendientes sobre la base configurada.
 2. Hibernate valida el esquema (`ddl-auto: validate`) contra las entidades.
 3. Si `ADMIN_EMAIL`/`ADMIN_PASSWORD` están definidos y no existe ningún ADMIN,
-   `AdminInitializer` crea el primer administrador (una sola vez).
+   `AdminInitializer` crea el primer administrador (una sola vez). En desarrollo
+   se usan `admin@fastorder.com` / `Admin123*`; con el perfil `prod` **no** hay
+   valores por defecto: las variables deben definirse explícitamente.
 4. Tomcat escucha en `SERVER_PORT` (por defecto `8080`).
 
 ### 3. Docker completo (API + BD)
@@ -327,7 +329,7 @@ TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
 ```bash
 ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@delivery.com","password":"ChangeMe-Admin-123!"}' | jq -r .token)
+  -d '{"email":"admin@fastorder.com","password":"Admin123*"}' | jq -r .token)
 
 COMERCIO=$(curl -s -X POST http://localhost:8080/api/v1/comercios \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \

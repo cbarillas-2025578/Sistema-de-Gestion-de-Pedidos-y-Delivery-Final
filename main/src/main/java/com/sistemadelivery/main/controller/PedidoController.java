@@ -44,7 +44,8 @@ public class PedidoController {
     private final NotificacionService notificacionService;
 
     @Operation(summary = "Crear pedido multiproducto (solo CLIENTE)",
-            description = "El cliente envía comercioId y pares productoId/cantidad. "
+            description = "El cliente envía pares productoId/cantidad en 'productos' (también se acepta 'items') "
+                    + "y, opcionalmente, comercioId: si se omite, el comercio se deduce de los productos. "
                     + "Los precios, subtotales, costo de envío (Q20.00) y el total "
                     + "se calculan exclusivamente en el servidor.")
     @PostMapping
